@@ -1,0 +1,61 @@
+{
+    "name": "aw3r1se/laravel-audit-core",
+    "description": "Eloquent model & relation change auditing for Laravel, with a pluggable transport",
+    "type": "library",
+    "license": "MIT",
+    "keywords": [
+        "laravel",
+        "audit",
+        "eloquent",
+        "activity-log"
+    ],
+    "homepage": "https://github.com/aw3r1se/laravel-audit-core",
+    "authors": [
+        {
+            "name": "Bogdan Koch",
+            "email": "aw3r1se@gmail.com"
+        }
+    ],
+    "support": {
+        "issues": "https://github.com/aw3r1se/laravel-audit-core/issues",
+        "source": "https://github.com/aw3r1se/laravel-audit-core"
+    },
+    "require": {
+        "php": "^8.3",
+        "illuminate/contracts": "^11.0|^12.0",
+        "illuminate/database": "^11.0|^12.0",
+        "illuminate/http": "^11.0|^12.0",
+        "illuminate/support": "^11.0|^12.0",
+        "psr/log": "^3.0",
+        "symfony/http-foundation": "^7.0"
+    },
+    "require-dev": {
+        "orchestra/testbench": "^9.0|^10.0",
+        "phpunit/phpunit": "^11.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Aw3r1se\\Audit\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Aw3r1se\\Audit\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Aw3r1se\\Audit\\AuditServiceProvider"
+            ]
+        }
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "scripts": {
+        "test": "vendor/bin/phpunit"
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
