@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Aw3r1se\Audit\Relations\Concerns;
 
-use Closure;
 use Aw3r1se\Audit\AuditContext;
+use Closure;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 
@@ -113,7 +113,7 @@ trait RecordsHasOneOrMany
 
         if (!$silent && $result instanceof Model && $result->exists) {
             $this->recordRelationAudit('relation_attached', [
-                'attached' => [$result->getKey()],
+                'attached' => [$this->auditIdentify($result)],
             ]);
         }
 
@@ -135,9 +135,9 @@ trait RecordsHasOneOrMany
             $this->auditSilent = false;
         }
 
-        $ids = $result instanceof Collection
-            ? $result->modelKeys()
-            : $this->extractKeys(is_iterable($result) ? $result : []);
+        // Always identify per model (instead of Collection::modelKeys()) so weak
+        // entities fall back to an attribute snapshot rather than a null key.
+        $ids = $this->extractKeys(is_iterable($result) ? $result : []);
 
         if ($ids !== []) {
             $this->recordRelationAudit('relation_attached', [
@@ -162,7 +162,7 @@ trait RecordsHasOneOrMany
 
         if ($result instanceof Model && $result->wasRecentlyCreated) {
             $this->recordRelationAudit('relation_attached', [
-                'attached' => [$result->getKey()],
+                'attached' => [$this->auditIdentify($result)],
             ]);
         }
 
@@ -191,18 +191,24 @@ trait RecordsHasOneOrMany
     }
 
     /**
+     * Identify a related model for the audit log: its key, or an attribute
+     * snapshot when it is a weak entity with no usable key.
+     */
+    protected function auditIdentify(Model $model): mixed
+    {
+        return resolve(AuditContext::class)->identify($model);
+    }
+
+    /**
      * @param  iterable<int, mixed>  $models
-     * @return list<int|string>
+     * @return list<mixed>
      */
     protected function extractKeys(iterable $models): array
     {
         $ids = [];
         foreach ($models as $model) {
             if ($model instanceof Model && $model->exists) {
-                $key = $model->getKey();
-                if ($key !== null) {
-                    $ids[] = $key;
-                }
+                $ids[] = $this->auditIdentify($model);
             }
         }
 

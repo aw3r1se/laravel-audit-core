@@ -34,4 +34,9 @@ class Post extends Model implements Auditable
     {
         return $this->hasMany(Comment::class);
     }
+
+    public function metrics(): HasMany
+    {
+        return $this->hasMany(PostMetric::class);
+    }
 }

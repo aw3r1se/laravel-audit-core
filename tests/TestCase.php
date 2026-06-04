@@ -55,5 +55,12 @@ abstract class TestCase extends Orchestra
             $table->string('body')->nullable();
             $table->timestamps();
         });
+
+        // Weak entity: no primary key of its own.
+        Schema::create('post_metrics', function (Blueprint $table): void {
+            $table->foreignId('post_id');
+            $table->string('label')->nullable();
+            $table->integer('value')->nullable();
+        });
     }
 }

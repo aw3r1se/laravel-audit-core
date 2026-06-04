@@ -7,6 +7,7 @@ namespace Aw3r1se\Audit\Tests\Feature;
 use Aw3r1se\Audit\AuditContext;
 use Aw3r1se\Audit\Tests\Fixtures\Author;
 use Aw3r1se\Audit\Tests\Fixtures\Post;
+use Aw3r1se\Audit\Tests\Fixtures\PostMetric;
 use Aw3r1se\Audit\Tests\Fixtures\Tag;
 use Aw3r1se\Audit\Tests\TestCase;
 
@@ -137,5 +138,42 @@ final class RecordsRelationsTest extends TestCase
         $this->assertNotNull($attach);
         $this->assertSame('comments', $attach['state']['relation']);
         $this->assertSame([$comment->getKey()], $attach['state']['attached']);
+    }
+
+    public function test_it_snapshots_weak_entities_with_no_key_on_attach(): void
+    {
+        $post = $this->freshPost();
+
+        $post->metrics()->createMany([
+            ['label' => 'views', 'value' => 10],
+            ['label' => 'clicks', 'value' => 3],
+        ]);
+
+        $attach = collect($this->pull())->firstWhere('action', 'relation_attached');
+
+        $this->assertNotNull($attach);
+        $this->assertSame('metrics', $attach['state']['relation']);
+
+        // No null ids — each entry is a filtered attribute snapshot instead.
+        $attached = $attach['state']['attached'];
+        $this->assertCount(2, $attached);
+        $this->assertIsArray($attached[0]);
+        $this->assertSame('views', $attached[0]['label']);
+        $this->assertSame($post->getKey(), $attached[0]['post_id']);
+        $this->assertArrayNotHasKey('id', $attached[0]);
+    }
+
+    public function test_weak_entity_model_id_falls_back_to_snapshot(): void
+    {
+        $post = $this->freshPost();
+
+        $post->metrics()->create(['label' => 'views', 'value' => 10]);
+
+        $created = collect($this->pull())->firstWhere('action', 'created');
+
+        $this->assertNotNull($created);
+        $this->assertSame(PostMetric::class, $created['model_type']);
+        $this->assertIsArray($created['model_id']);
+        $this->assertSame('views', $created['model_id']['label']);
     }
 }

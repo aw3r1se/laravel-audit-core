@@ -30,10 +30,26 @@ class AuditContext
 
         $this->changes[] = [
             'model_type' => $model::class,
-            'model_id' => $model->getKey(),
+            'model_id' => $this->identify($model),
             'action' => $action,
             'state' => $this->filter($model, $state),
         ];
+    }
+
+    /**
+     * A stable audit identity for a model: its primary key, or — for a weak
+     * entity that has no usable key — a filtered snapshot of its attributes, so
+     * the change is still recorded meaningfully instead of as a null id.
+     */
+    public function identify(Model $model): mixed
+    {
+        $key = $model->getKey();
+
+        if ($key !== null) {
+            return $key;
+        }
+
+        return $this->filter($model, $model->getAttributes());
     }
 
     /**
@@ -91,6 +107,15 @@ class AuditContext
      */
     protected function ignoredFieldsFor(Model $model): array
     {
-        return $model instanceof Auditable ? $model->getAuditIgnoredFields() : [];
+        if ($model instanceof Auditable) {
+            return $model->getAuditIgnoredFields();
+        }
+
+        // A non-Auditable model (e.g. a weak entity snapshotted via identify())
+        // still benefits from the global defaults so timestamps stay out.
+        /** @var list<string> $defaults */
+        $defaults = config('audit.ignored_fields', []);
+
+        return $defaults;
     }
 }

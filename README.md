@@ -54,6 +54,15 @@ on `belongsTo`, `hasOne/Many`, `morphOne/Many`, `belongsToMany` and
 `morphToMany` are audited automatically. No changes to your relation definitions
 are needed.
 
+#### Weak entities (no primary key)
+
+Some child records have no key of their own (`$incrementing = false`, no
+surrogate id). For those, `getKey()` is `null`, so a recorded id would be
+meaningless. The engine detects this and falls back to a **filtered attribute
+snapshot** of the row (honouring `getHidden()` and the ignored fields), both in
+the relation payload (`attached`/`detached`) and in a model's own `model_id`.
+You get the actual state of the change instead of `null`.
+
 ### 2. Attach the middleware
 
 Add `Aw3r1se\Audit\Http\Middleware\AuditActions` to the route group you want

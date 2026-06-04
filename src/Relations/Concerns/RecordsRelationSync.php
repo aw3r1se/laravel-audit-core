@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Aw3r1se\Audit\Relations\Concerns;
 
-use BackedEnum;
 use Aw3r1se\Audit\AuditContext;
+use BackedEnum;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection as BaseCollection;
