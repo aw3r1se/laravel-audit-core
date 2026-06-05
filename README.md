@@ -63,6 +63,55 @@ snapshot** of the row (honouring `getHidden()` and the ignored fields), both in
 the relation payload (`attached`/`detached`) and in a model's own `model_id`.
 You get the actual state of the change instead of `null`.
 
+### Recording strategy: diff vs snapshot
+
+By default each model event is recorded as a **diff** — new attributes on
+create, changed attributes on update, the original row on delete. You can
+instead record a **snapshot**: the model's full filtered attributes plus a
+recursive snapshot of selected relations.
+
+Pick the default for every model in config, and override it per model:
+
+```php
+// config/audit.php
+'strategy' => 'snapshot', // 'changes' (default) | 'snapshot' | any AuditStrategy class
+```
+
+```php
+class Order extends Model implements Auditable
+{
+    use InteractsWithAudit;
+
+    // Override just for this model (a config key or an AuditStrategy class).
+    protected string $auditStrategy = 'snapshot';
+
+    // Relations embedded in the snapshot — dot-notation for nesting.
+    protected array $auditSnapshotRelations = ['customer', 'lines.product'];
+}
+```
+
+A snapshot entry's `state` looks like:
+
+```json
+{
+  "attributes": { "status": "paid", "total": 4200 },
+  "relations": {
+    "customer": { "name": "ACME" },
+    "lines": [ { "qty": 2, "relations": { "product": { "sku": "A1" } } } ]
+  }
+}
+```
+
+Relations are queried fresh at capture time (honouring `getHidden()` and the
+ignored fields, same as attributes), so the snapshot reflects current persisted
+state. Deletions are captured on `deleting`, while relations are still attached.
+
+This only shapes a model's own create/update/delete entry; relation-mutation
+recording (`attach`/`detach`/`sync`) is independent and runs under either
+strategy. To add your own strategy, implement
+`Aw3r1se\Audit\Contracts\AuditStrategy` and register it under
+`config('audit.strategies')` (or reference it by class-string).
+
 ### 2. Attach the middleware
 
 Add `Aw3r1se\Audit\Http\Middleware\AuditActions` to the route group you want
@@ -98,6 +147,8 @@ blocks the request — configure your queue accordingly.
 
 | key                 | default                       | purpose                                            |
 |---------------------|-------------------------------|----------------------------------------------------|
+| `strategy`          | `'changes'`                         | default recording strategy (`changes` / `snapshot`)  |
+| `strategies`        | `changes`/`snapshot` map            | key → `AuditStrategy` class, for per-model selection |
 | `transport`         | `NullTransport::class`              | who receives each `AuditEvent`                       |
 | `user_id_attribute` | `audit_user_id`                     | request attribute used to resolve a logged-out actor |
 | `auditable_methods` | `['POST','PUT','PATCH','DELETE']`   | HTTP methods that trigger an audit                   |

@@ -2,9 +2,31 @@
 
 declare(strict_types=1);
 
+use Aw3r1se\Audit\Strategies\ChangesStrategy;
+use Aw3r1se\Audit\Strategies\SnapshotStrategy;
 use Aw3r1se\Audit\Transport\NullTransport;
 
 return [
+    /*
+    |--------------------------------------------------------------------------
+    | Recording strategy
+    |--------------------------------------------------------------------------
+    |
+    | How a model event becomes recorded state. 'changes' stores a diff (new
+    | attributes on create, changed on update, original on delete); 'snapshot'
+    | stores the model's full filtered attributes plus the relations it declares
+    | in getAuditSnapshotRelations(). This is the default for every model; a
+    | model can override it via Auditable::getAuditStrategy() (the optional
+    | $auditStrategy property). Reference a key below or any AuditStrategy class.
+    |
+    */
+    'strategy' => env('AUDIT_STRATEGY', 'changes'),
+
+    'strategies' => [
+        'changes' => ChangesStrategy::class,
+        'snapshot' => SnapshotStrategy::class,
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | Audit transport

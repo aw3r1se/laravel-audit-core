@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Aw3r1se\Audit;
 
 use Aw3r1se\Audit\Contracts\Auditable;
+use Aw3r1se\Audit\Contracts\AuditStrategy;
+use Aw3r1se\Audit\Strategies\ChangesStrategy;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -19,20 +21,28 @@ class AuditContext
     /** @var list<array<string, mixed>> */
     protected array $changes = [];
 
-    public function record(Model $model, string $action): void
+    /** @var array<string, AuditStrategy> */
+    protected array $strategies = [];
+
+    /**
+     * Record a model event. How the state is shaped (a diff or a full snapshot)
+     * is delegated to the {@see AuditStrategy} resolved for the model; a null
+     * return means the strategy ignores this event and nothing is buffered.
+     */
+    public function record(Model $model, string $event): void
     {
-        $state = match ($action) {
-            'created' => $model->getAttributes(),
-            'updated' => $model->getChanges(),
-            'deleted' => $model->getRawOriginal(),
-            default => [],
-        };
+        $state = $this->strategyFor($model)->capture($this, $model, $event);
+
+        if ($state === null) {
+            return;
+        }
 
         $this->changes[] = [
             'model_type' => $model::class,
             'model_id' => $this->identify($model),
-            'action' => $action,
-            'state' => $this->filter($model, $state),
+            // 'deleting' is an internal capture hook; report it as 'deleted'.
+            'action' => $event === 'deleting' ? 'deleted' : $event,
+            'state' => $state,
         ];
     }
 
@@ -88,10 +98,13 @@ class AuditContext
     }
 
     /**
+     * Strip ignored and hidden attributes from a state array. Public so custom
+     * strategies can reuse the exact same filtering the engine applies.
+     *
      * @param  array<string, mixed>  $attributes
      * @return array<string, mixed>
      */
-    protected function filter(Model $model, array $attributes): array
+    public function filter(Model $model, array $attributes): array
     {
         $excluded = array_merge($this->ignoredFieldsFor($model), $model->getHidden());
 
@@ -100,6 +113,37 @@ class AuditContext
             static fn (string $key): bool => !in_array($key, $excluded, true),
             ARRAY_FILTER_USE_KEY,
         );
+    }
+
+    /**
+     * Resolve the recording strategy for a model: a per-model override
+     * ({@see Auditable::getAuditStrategy()}) if present, otherwise the
+     * configured default. Resolved instances are cached for the request.
+     */
+    protected function strategyFor(Model $model): AuditStrategy
+    {
+        $choice = $model instanceof Auditable ? $model->getAuditStrategy() : null;
+        $choice ??= config('audit.strategy', 'changes');
+
+        return $this->strategies[$choice] ??= $this->makeStrategy((string) $choice);
+    }
+
+    /**
+     * Resolve a strategy from its config key (e.g. `snapshot`) or a class-string.
+     */
+    protected function makeStrategy(string $choice): AuditStrategy
+    {
+        /** @var array<string, class-string<AuditStrategy>> $map */
+        $map = config('audit.strategies', []);
+
+        /** @var class-string<AuditStrategy> $class */
+        $class = $map[$choice] ?? $choice;
+
+        if (!is_a($class, AuditStrategy::class, true)) {
+            $class = ChangesStrategy::class;
+        }
+
+        return app()->make($class);
     }
 
     /**

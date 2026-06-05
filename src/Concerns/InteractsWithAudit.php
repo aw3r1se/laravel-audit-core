@@ -30,6 +30,10 @@ trait InteractsWithAudit
         // across Octane requests — never capture it in this once-per-worker boot.
         static::created(static fn (Model $model) => resolve(AuditContext::class)->record($model, 'created'));
         static::updated(static fn (Model $model) => resolve(AuditContext::class)->record($model, 'updated'));
+        // Both delete hooks fire; each strategy keeps only the one it handles
+        // ('deleting' for snapshots so relations are still attached, 'deleted'
+        // for diffs), so exactly one delete entry is recorded.
+        static::deleting(static fn (Model $model) => resolve(AuditContext::class)->record($model, 'deleting'));
         static::deleted(static fn (Model $model) => resolve(AuditContext::class)->record($model, 'deleted'));
     }
 
@@ -70,6 +74,35 @@ trait InteractsWithAudit
     {
         /** @var list<string> $own */
         $own = $this->auditIgnoredRelations ?? [];
+
+        return $own;
+    }
+
+    /**
+     * Per-model recording strategy: a `config('audit.strategies')` key (e.g.
+     * `snapshot`) or an {@see \Aw3r1se\Audit\Contracts\AuditStrategy} class-string.
+     * Reads the optional `$auditStrategy` property; null falls back to the
+     * configured default. Override this method for computed values.
+     */
+    public function getAuditStrategy(): ?string
+    {
+        /** @var string|null $strategy */
+        $strategy = $this->auditStrategy ?? null;
+
+        return $strategy;
+    }
+
+    /**
+     * Relations included in a snapshot, dot-notation for nesting (e.g.
+     * `['author', 'comments.replies']`). Reads the optional
+     * `$auditSnapshotRelations` property. Only used by the snapshot strategy.
+     *
+     * @return list<string>
+     */
+    public function getAuditSnapshotRelations(): array
+    {
+        /** @var list<string> $own */
+        $own = $this->auditSnapshotRelations ?? [];
 
         return $own;
     }
