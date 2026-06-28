@@ -8,9 +8,10 @@ use Aw3r1se\Audit\AuditContext;
 use Closure;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasOneOrMany;
 
 /**
- * @mixin \Illuminate\Database\Eloquent\Relations\HasOneOrMany
+ * @mixin HasOneOrMany
  */
 trait RecordsHasOneOrMany
 {
@@ -75,7 +76,7 @@ trait RecordsHasOneOrMany
 
     /**
      * @param  array<string, mixed>  $attributes
-     * @param  Closure|array<string, mixed>  $values
+     * @param  array<string, mixed>  $values
      */
     public function firstOrCreate(array $attributes = [], Closure|array $values = []): Model
     {
@@ -84,7 +85,7 @@ trait RecordsHasOneOrMany
 
     /**
      * @param  array<string, mixed>  $attributes
-     * @param  Closure|array<string, mixed>  $values
+     * @param  array<string, mixed>  $values
      */
     public function createOrFirst(array $attributes = [], Closure|array $values = []): Model
     {
