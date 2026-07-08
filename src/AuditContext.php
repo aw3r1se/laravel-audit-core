@@ -38,8 +38,7 @@ class AuditContext
         }
 
         $this->changes[] = [
-            'model_type' => $model::class,
-            'model_id' => $this->identify($model),
+            'model' => $model,
             // 'deleting' is an internal capture hook; report it as 'deleted'.
             'action' => $event === 'deleting' ? 'deleted' : $event,
             'state' => $state,
@@ -73,8 +72,7 @@ class AuditContext
         array $payload,
     ): void {
         $this->changes[] = [
-            'model_type' => $parent::class,
-            'model_id' => $parent->getKey(),
+            'model' => $parent,
             'action' => $action,
             'state' => [
                 'relation' => $relation,
@@ -87,11 +85,27 @@ class AuditContext
     /**
      * Drain and reset the buffer.
      *
+     * The model identity (type + id) is materialised here, not when the change
+     * is buffered: a relation attached to a not-yet-persisted parent (e.g. a
+     * belongsTo associated before the child's INSERT) has no key at record time
+     * but does by the time the request-scoped buffer is drained.
+     *
      * @return list<array<string, mixed>>
      */
     public function pull(): array
     {
-        $changes = $this->changes;
+        $changes = array_map(function (array $entry): array {
+            /** @var Model $model */
+            $model = $entry['model'];
+
+            return [
+                'model_type' => $model::class,
+                'model_id' => $this->identify($model),
+                'action' => $entry['action'],
+                'state' => $entry['state'],
+            ];
+        }, $this->changes);
+
         $this->changes = [];
 
         return $changes;

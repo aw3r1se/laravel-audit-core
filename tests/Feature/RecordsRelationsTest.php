@@ -6,6 +6,7 @@ namespace Aw3r1se\Audit\Tests\Feature;
 
 use Aw3r1se\Audit\AuditContext;
 use Aw3r1se\Audit\Tests\Fixtures\Author;
+use Aw3r1se\Audit\Tests\Fixtures\Comment;
 use Aw3r1se\Audit\Tests\Fixtures\Post;
 use Aw3r1se\Audit\Tests\Fixtures\PostMetric;
 use Aw3r1se\Audit\Tests\Fixtures\Tag;
@@ -122,6 +123,25 @@ final class RecordsRelationsTest extends TestCase
         $this->assertSame('relation_attached', $changes[0]['action']);
         $this->assertSame('author', $changes[0]['state']['relation']);
         $this->assertSame([$author->getKey()], $changes[0]['state']['attached']);
+    }
+
+    public function test_relation_on_unsaved_parent_gets_id_backfilled_on_pull(): void
+    {
+        $post = $this->freshPost();
+
+        // Associate the belongsTo before the child is persisted: getKey() is
+        // null at record time, but the id must be resolved when the buffer is
+        // drained, after save().
+        $comment = new Comment(['body' => 'Nice']);
+        $comment->post()->associate($post);
+        $comment->save();
+
+        $attach = collect($this->pull())->firstWhere('action', 'relation_attached');
+
+        $this->assertNotNull($attach);
+        $this->assertSame(Comment::class, $attach['model_type']);
+        $this->assertSame($comment->getKey(), $attach['model_id']);
+        $this->assertNotNull($attach['model_id']);
     }
 
     public function test_it_records_has_many_create(): void
