@@ -28,12 +28,16 @@ class AuditContext
      * Record a model event. How the state is shaped (a diff or a full snapshot)
      * is delegated to the {@see AuditStrategy} resolved for the model; a null
      * return means the strategy ignores this event and nothing is buffered.
+     *
+     * An empty state is dropped too: once ignored and hidden attributes are
+     * filtered out there is nothing auditable left, and buffering it would
+     * surface as an entry with no changes.
      */
     public function record(Model $model, string $event): void
     {
         $state = $this->strategyFor($model)->capture($this, $model, $event);
 
-        if ($state === null) {
+        if ($state === null || $state === []) {
             return;
         }
 
